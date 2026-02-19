@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 
 session_start();
 
-$conn = new mysqli("localhost","s673190120","","s673190120");
+$conn = new mysqli("localhost","s673190120","s673190120","s673190120");
 if ($conn->connect_error) {
     die("เชื่อมต่อฐานข้อมูลไม่ได้: " . $conn->connect_error);
 }
