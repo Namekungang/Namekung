@@ -326,7 +326,13 @@ while($b=$books->fetch_assoc()){
  echo "<tr>";
  echo "<td>{$b['id']}</td>";
  echo "<td>{$b['book_name']}</td>";
- echo "<td>{$b['stat
+ echo "<td>{$b['status']}</td>";
+ echo "</tr>";
+}
+?>
+</table>
+
+<?php } else { ?>
 <h1>เข้าสู่ระบบ</h1>
 <form method="post">
 <input type="text" name="username" placeholder="Username" required>
