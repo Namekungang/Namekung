@@ -1,4 +1,8 @@
+# ระบบการยืมคืนหนังสือ (ไฟล์เดียว พร้อมภาพประกอบ)
 
+นำโค้ดด้านล่างนี้ไปวางแทนไฟล์เดิมทั้งหมด
+
+```php
 <?php
 session_start();
 
@@ -12,8 +16,17 @@ $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) UNIQUE,
     password VARCHAR(255),
-    full_name VARCHAR(255)
+    full_name VARCHAR(255),
+    role ENUM('user','admin') DEFAULT 'user'
 )");
+
+// สร้าง admin เริ่มต้น
+$checkAdmin = $conn->query("SELECT id FROM users WHERE role='admin' LIMIT 1");
+if ($checkAdmin->num_rows == 0) {
+    $adminPass = password_hash("admin123", PASSWORD_DEFAULT);
+    $conn->query("INSERT INTO users(username,password,full_name,role)
+                  VALUES('admin','$adminPass','Administrator','admin')");
+}
 
 $conn->query("CREATE TABLE IF NOT EXISTS books (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,7 +42,6 @@ $conn->query("CREATE TABLE IF NOT EXISTS borrow (
     return_date DATETIME NULL
 )");
 
-// เพิ่มหนังสือตัวอย่างอัตโนมัติ
 $checkBook = $conn->query("SELECT id FROM books LIMIT 1");
 if ($checkBook->num_rows == 0) {
     $conn->query("INSERT INTO books (book_name) VALUES
@@ -69,6 +81,7 @@ if ($action == 'login' && isset($_POST['login'])) {
         if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
             header("Location: ?action=dashboard"); exit();
         } else {
             $message = "รหัสผ่านไม่ถูกต้อง";
@@ -97,6 +110,13 @@ if ($action == 'return' && isset($_GET['borrow_id'])) {
     header("Location: ?action=mybooks"); exit();
 }
 
+// ================= ADD BOOK (ADMIN) =================
+if ($action == 'addbook' && isset($_POST['addbook']) && $_SESSION['role']=='admin') {
+    $book_name = $_POST['book_name'];
+    $conn->query("INSERT INTO books(book_name) VALUES('$book_name')");
+    header("Location: ?action=admin"); exit();
+}
+
 // ================= LOGOUT =================
 if ($action == 'logout') {
     session_destroy();
@@ -111,59 +131,90 @@ if ($action == 'logout') {
 <style>
 body{
     font-family: Arial;
-    background: linear-gradient(to right,#4e73df,#1cc88a);
     margin:0;
+    background: linear-gradient(to right,#141e30,#243b55);
+}
+.header{
+    text-align:center;
+    padding:20px;
+    color:white;
+}
+.header img{
+    width:120px;
 }
 .container{
     width:900px;
     margin:auto;
     background:white;
-    margin-top:30px;
+    margin-top:20px;
     padding:30px;
-    border-radius:10px;
-    box-shadow:0 5px 20px rgba(0,0,0,0.2);
+    border-radius:15px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.3);
 }
 h1{ text-align:center; }
 .menu a{
     padding:10px 15px;
-    background:#4e73df;
+    background:#243b55;
     color:white;
     text-decoration:none;
     margin-right:5px;
     border-radius:5px;
 }
+.menu a:hover{
+    background:#141e30;
+}
 .menu{ margin-bottom:20px; }
 input,button{
-    padding:10px;
-    margin:5px 0;
+    padding:12px;
+    margin:8px 0;
     width:100%;
+    border-radius:5px;
+    border:1px solid #ccc;
 }
 button{
-    background:#4e73df;
+    background:#243b55;
     color:white;
     border:none;
     cursor:pointer;
 }
+button:hover{
+    background:#141e30;
+}
 table{
     width:100%;
     border-collapse:collapse;
+    margin-top:15px;
 }
 table,th,td{
     border:1px solid #ddd;
+}
+th{
+    background:#243b55;
+    color:white;
 }
 th,td{
     padding:10px;
     text-align:center;
 }
-.message{ color:red; }
+.message{ color:red; text-align:center; }
+.footer{
+    text-align:center;
+    color:white;
+    margin-top:20px;
+    padding:10px;
+}
 </style>
 </head>
 <body>
 
+<div class="header">
+    <img src="https://cdn-icons-png.flaticon.com/512/29/29302.png">
+    <h2>ระบบการยืมคืนหนังสือออนไลน์</h2>
+</div>
+
 <div class="container">
 
 <?php if ($action == 'register') { ?>
-
 <h1>สมัครสมาชิก</h1>
 <form method="post">
 <input type="text" name="full_name" placeholder="ชื่อ-สกุล" required>
@@ -175,29 +226,29 @@ th,td{
 <a href="?">ไปหน้า Login</a>
 
 <?php } elseif ($action == 'dashboard' && isset($_SESSION['user_id'])) { ?>
-
-<h1>📚 ระบบการยืมคืนหนังสือ</h1>
+<h1>📚 Dashboard</h1>
 <div class="menu">
 <a href="?action=borrow_page">ยืมหนังสือ</a>
 <a href="?action=mybooks">รายการที่ยืม</a>
+<?php if($_SESSION['role']=='admin'){ ?>
+<a href="?action=admin">จัดการระบบ</a>
+<?php } ?>
 <a href="?action=logout">Logout</a>
 </div>
-<p>ยินดีต้อนรับ <?php echo $_SESSION['username']; ?></p>
+<p>ยินดีต้อนรับ <b><?php echo $_SESSION['username']; ?></b></p>
 
 <?php } elseif ($action == 'borrow_page') { ?>
-
 <h1>เลือกหนังสือเพื่อยืม</h1>
 <div class="menu">
 <a href="?action=dashboard">กลับหน้า Dashboard</a>
 </div>
-
 <table>
 <tr><th>ชื่อหนังสือ</th><th>สถานะ</th><th>จัดการ</th></tr>
 <?php
 $books = $conn->query("SELECT * FROM books");
 while($b = $books->fetch_assoc()){
 echo "<tr>";
-echo "<td>".$b['book_name']."</td>";
+echo "<td>📖 ".$b['book_name']."</td>";
 echo "<td>".$b['status']."</td>";
 if($b['status']=="available"){
 echo "<td><a href='?action=borrow&book=".$b['id']."'>ยืม</a></td>";
@@ -210,12 +261,10 @@ echo "</tr>";
 </table>
 
 <?php } elseif ($action == 'mybooks') { ?>
-
 <h1>รายการที่ยืม</h1>
 <div class="menu">
 <a href="?action=dashboard">กลับหน้า Dashboard</a>
 </div>
-
 <table>
 <tr><th>ชื่อหนังสือ</th><th>วันที่ยืม</th><th>วันที่คืน</th><th>จัดการ</th></tr>
 <?php
@@ -227,7 +276,7 @@ $sql = "SELECT borrow.*,books.book_name
 $result = $conn->query($sql);
 while($row=$result->fetch_assoc()){
 echo "<tr>";
-echo "<td>".$row['book_name']."</td>";
+echo "<td>📘 ".$row['book_name']."</td>";
 echo "<td>".$row['borrow_date']."</td>";
 echo "<td>".($row['return_date'] ?? '-')."</td>";
 if(!$row['return_date']){
@@ -240,9 +289,45 @@ echo "</tr>";
 ?>
 </table>
 
-<?php } else { ?>
+<?php } elseif ($action == 'admin' && isset($_SESSION['role']) && $_SESSION['role']=='admin') { ?>
 
-<h1>📚 ระบบการยืมคืนหนังสือ</h1>
+<h1>⚙️ หน้าผู้ดูแลระบบ (Admin)</h1>
+<div class="menu">
+<a href="?action=dashboard">กลับหน้า Dashboard</a>
+</div>
+
+<h3>👥 จัดการสมาชิก</h3>
+<table>
+<tr><th>ID</th><th>Username</th><th>ชื่อ</th><th>Role</th></tr>
+<?php
+$users = $conn->query("SELECT * FROM users");
+while($u=$users->fetch_assoc()){
+ echo "<tr>";
+ echo "<td>{$u['id']}</td>";
+ echo "<td>{$u['username']}</td>";
+ echo "<td>{$u['full_name']}</td>";
+ echo "<td>{$u['role']}</td>";
+ echo "</tr>";
+}
+?>
+</table>
+
+<h3 style='margin-top:30px;'>📚 จัดการหนังสือ</h3>
+<form method="post" action="?action=addbook">
+<input type="text" name="book_name" placeholder="ชื่อหนังสือใหม่" required>
+<button name="addbook">เพิ่มหนังสือ</button>
+</form>
+
+<table>
+<tr><th>ID</th><th>ชื่อหนังสือ</th><th>สถานะ</th></tr>
+<?php
+$books = $conn->query("SELECT * FROM books");
+while($b=$books->fetch_assoc()){
+ echo "<tr>";
+ echo "<td>{$b['id']}</td>";
+ echo "<td>{$b['book_name']}</td>";
+ echo "<td>{$b['stat
+<h1>เข้าสู่ระบบ</h1>
 <form method="post">
 <input type="text" name="username" placeholder="Username" required>
 <input type="password" name="password" placeholder="Password" required>
@@ -254,6 +339,11 @@ echo "</tr>";
 <?php } ?>
 
 </div>
+
+<div class="footer">
+    © 2026 ระบบการยืมคืนหนังสือ
+</div>
+
 </body>
 </html>
 ```
