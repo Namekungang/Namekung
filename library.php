@@ -1,23 +1,14 @@
-<?php
-/* =============================
-   SIMPLE LIBRARY SYSTEM (ONE FILE)
-   Save as: library.php
-   ============================= */
-
-// ---------- DATABASE CONFIG ----------
 $host = "localhost";
-$user = "root";
-$pass = "";
-$db   = "library_system";
+$user = "s673190120";
+$pass = "s673190120";
+$db   = "s673190120"; // ต้องสร้าง DB นี้ไว้ก่อน
 
-$conn = new mysqli($host, $user, $pass);
-if ($conn->connect_error) die("Connection failed");
+$conn = new mysqli($host, $user, $pass, $db);
+if ($conn->connect_error) die("Connection failed: " . $conn->connect_error);
 
-// Create Database if not exists
-$conn->query("CREATE DATABASE IF NOT EXISTS $db");
-$conn->select_db($db);
+session_start();
 
-// Create Tables
+// ---------- CREATE TABLES IF NOT EXISTS ----------
 $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE,
@@ -42,7 +33,14 @@ $conn->query("CREATE TABLE IF NOT EXISTS borrowings (
     status ENUM('borrowed','returned') DEFAULT 'borrowed'
 )");
 
-session_start();
+// ---------- INSERT SAMPLE BOOKS IF EMPTY ----------
+$check = $conn->query("SELECT COUNT(*) as total FROM books")->fetch_assoc();
+if ($check['total'] == 0) {
+    $conn->query("INSERT INTO books(title,author,quantity) VALUES
+        ('Database Systems','Navathe',5),
+        ('PHP Programming','John Smith',3),
+        ('Web Development','David Brown',4)");
+}
 
 // ---------- ROUTER ----------
 $action = $_GET['action'] ?? 'home';
@@ -82,90 +80,9 @@ if ($action == 'borrow' && isset($_GET['id'])) {
     $book_id = $_GET['id'];
     $user_id = $_SESSION['user_id'];
     $conn->query("INSERT INTO borrowings(user_id,book_id,borrow_date) VALUES($user_id,$book_id,CURDATE())");
-    $conn->query("UPDATE books SET quantity=quantity-1 WHERE id=$book_id");
+    $conn->query("UPDATE books SET quantity=quantity-1 WHERE id=$book_id AND quantity>0");
     header("Location: ?action=mybooks");
 }
 
 // ---------- RETURN ----------
-if ($action == 'return' && isset($_GET['id'])) {
-    $id = $_GET['id'];
-    $conn->query("UPDATE borrowings SET status='returned', return_date=CURDATE() WHERE id=$id");
-    $borrow = $conn->query("SELECT book_id FROM borrowings WHERE id=$id")->fetch_assoc();
-    $conn->query("UPDATE books SET quantity=quantity+1 WHERE id=".$borrow['book_id']);
-    header("Location: ?action=mybooks");
-}
-
-// ---------- ADD SAMPLE BOOKS (FIRST RUN) ----------
-$check = $conn->query("SELECT COUNT(*) as total FROM books")->fetch_assoc();
-if ($check['total'] == 0) {
-    $conn->query("INSERT INTO books(title,author,quantity) VALUES
-        ('Database Systems','Navathe',5),
-        ('PHP Programming','John Smith',3),
-        ('Web Development','David Brown',4)");
-}
-?>
-
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Library System</title>
-</head>
-<body>
-
-<?php if (!isset($_SESSION['user_id']) && $action != 'register') { ?>
-
-<h2>Login</h2>
-<form method="post" action="?action=login">
-    <input type="text" name="username" placeholder="Username" required><br>
-    <input type="password" name="password" placeholder="Password" required><br>
-    <button name="login">Login</button>
-</form>
-<a href="?action=register">Register</a>
-
-<?php } ?>
-
-<?php if ($action == 'register') { ?>
-<h2>Register</h2>
-<form method="post">
-    <input type="text" name="full_name" placeholder="Full Name" required><br>
-    <input type="text" name="username" placeholder="Username" required><br>
-    <input type="password" name="password" placeholder="Password" required><br>
-    <button name="register">Register</button>
-</form>
-<a href="?action=login">Back to Login</a>
-<?php } ?>
-
-<?php if (isset($_SESSION['user_id']) && $action == 'home') { ?>
-<h2>Welcome <?php echo $_SESSION['username']; ?></h2>
-<a href="?action=logout">Logout</a>
-<h3>Book List</h3>
-<?php
-$books = $conn->query("SELECT * FROM books");
-while ($row = $books->fetch_assoc()) {
-    echo $row['title']." - ".$row['author']." (".$row['quantity'].")";
-    if ($row['quantity'] > 0)
-        echo " <a href='?action=borrow&id=".$row['id']."'>Borrow</a>";
-    echo "<br>";
-}
-?>
-<br>
-<a href="?action=mybooks">My Borrowed Books</a>
-<?php } ?>
-
-<?php if (isset($_SESSION['user_id']) && $action == 'mybooks') { ?>
-<h2>My Borrowed Books</h2>
-<a href="?action=home">Back</a><br><br>
-<?php
-$user_id = $_SESSION['user_id'];
-$result = $conn->query("SELECT borrowings.*, books.title FROM borrowings
-    JOIN books ON borrowings.book_id=books.id
-    WHERE user_id=$user_id AND status='borrowed'");
-while ($row = $result->fetch_assoc()) {
-    echo $row['title']." - Borrowed: ".$row['borrow_date'];
-    echo " <a href='?action=return&id=".$row['id']."'>Return</a><br>";
-}
-?>
-<?php } ?>
-
-</body>
 </html>
