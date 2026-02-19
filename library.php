@@ -208,7 +208,7 @@ th,td{
 <body>
 
 <div class="header">
-    <img src="https://cdn-icons-png.flaticon.com/512/29/29302.png">
+    <img src="lb2.jpg>
     <h2>ระบบการยืมคืนหนังสือออนไลน์</h2>
 </div>
 
@@ -335,7 +335,7 @@ while($b=$books->fetch_assoc()){
 
 <?php } else { ?>
 <h1>เข้าสู่ระบบ</h1>
-<img src="lb1.jpg" style="width:100%; max-height:250px; object-fit:cover; border-radius:15px; margin-bottom:20px;">
+<img src="lb.jpg" style="width:100%; max-height:250px; object-fit:cover; border-radius:15px; margin-bottom:20px;">
 <form method="post">
 <input type="text" name="username" placeholder="Username" required>
 <input type="password" name="password" placeholder="Password" required>
