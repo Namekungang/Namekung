@@ -1,8 +1,4 @@
-# ระบบการยืมคืนหนังสือ (ไฟล์เดียว พร้อมภาพประกอบ)
 
-นำโค้ดด้านล่างนี้ไปวางแทนไฟล์เดิมทั้งหมด
-
-```php
 <?php
 session_start();
 
@@ -208,7 +204,7 @@ th,td{
 <body>
 
 <div class="header">
-    <img src="https://cdn-icons-png.flaticon.com/512/29/29302.png">
+    <img src="lb2.jpg">
     <h2>ระบบการยืมคืนหนังสือออนไลน์</h2>
 </div>
 
