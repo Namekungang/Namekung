@@ -1,13 +1,19 @@
 <?php
-$host = "localhost";
-$user = "s673190120";
-$pass = "s673190120";
-$db   = "s673190120"; // ต้องสร้าง DB นี้ไว้ก่อน
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+session_start();
 
 $conn = new mysqli("localhost","root","","library_system");
-if ($conn->connect_error) die("Connection failed");
+if ($conn->connect_error) {
+    die("เชื่อมต่อฐานข้อมูลไม่ได้: " . $conn->connect_error);
+}
 
-if (isset($_POST['register'])) {
+$action = $_GET['action'] ?? 'login';
+$message = "";
+
+/* ================= REGISTER ================= */
+if ($action == 'register' && isset($_POST['register'])) {
 
     $username = $_POST['username'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -15,59 +21,84 @@ if (isset($_POST['register'])) {
 
     $check = $conn->query("SELECT id FROM users WHERE username='$username'");
     if ($check->num_rows > 0) {
-        echo "Username นี้มีอยู่แล้ว";
+        $message = "Username นี้มีอยู่แล้ว";
     } else {
         $conn->query("INSERT INTO users (username,password,full_name)
                       VALUES ('$username','$password','$fullname')");
-        echo "สมัครสมาชิกสำเร็จ <a href='login.php'>เข้าสู่ระบบ</a>";
+        $message = "สมัครสมาชิกสำเร็จ";
     }
 }
-session_start();
-session_destroy();
-header("Location: login.php");
-session_start();
-$conn = new mysqli("localhost","root","","library_system");
-if ($conn->connect_error) die("Connection failed");
 
-if (isset($_POST['login'])) {
+/* ================= LOGIN ================= */
+if ($action == 'login' && isset($_POST['login'])) {
 
     $username = $_POST['username'];
     $password = $_POST['password'];
 
     $result = $conn->query("SELECT * FROM users WHERE username='$username'");
-    $user = $result->fetch_assoc();
 
-    if ($user && password_verify($password, $user['password'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        header("Location: dashboard.php");
+    if ($result->num_rows > 0) {
+        $user = $result->fetch_assoc();
+
+        if (password_verify($password, $user['password'])) {
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            header("Location: index.php?action=dashboard");
+            exit();
+        } else {
+            $message = "รหัสผ่านไม่ถูกต้อง";
+        }
     } else {
-        echo "Username หรือ Password ไม่ถูกต้อง";
+        $message = "ไม่พบ Username นี้";
     }
 }
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+
+/* ================= LOGOUT ================= */
+if ($action == 'logout') {
+    session_destroy();
+    header("Location: index.php");
+    exit();
 }
 ?>
 
-<h2>สมัครสมาชิก</h2>
-<form method="post">
-    <input type="text" name="full_name" placeholder="ชื่อ-สกุล" required><br><br>
-    <input type="text" name="username" placeholder="Username" required><br><br>
-    <input type="password" name="password" placeholder="Password" required><br><br>
-    <button name="register">สมัครสมาชิก</button>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Login System</title>
+</head>
+<body>
 
-<a href="login.php">ไปหน้า Login</a>
-?>
-<h2>เข้าสู่ระบบ</h2>
-<form method="post">
-    <input type="text" name="username" placeholder="Username" required><br><br>
-    <input type="password" name="password" placeholder="Password" required><br><br>
-    <button name="login">Login</button>
-</form>
+<?php if ($action == 'register') { ?>
 
-<a href="register.php">สมัครสมาชิก</a>
-<h2>ยินดีต้อนรับ <?php echo $_SESSION['username']; ?></h2>
+    <h2>สมัครสมาชิก</h2>
+    <form method="post">
+        <input type="text" name="full_name" placeholder="ชื่อ-สกุล" required><br><br>
+        <input type="text" name="username" placeholder="Username" required><br><br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
+        <button name="register">สมัครสมาชิก</button>
+    </form>
 
-<a href="logout.php">Logout</a>
+    <p style="color:red;"><?php echo $message; ?></p>
+    <a href="index.php">ไปหน้า Login</a>
+
+<?php } elseif ($action == 'dashboard' && isset($_SESSION['user_id'])) { ?>
+
+    <h2>ยินดีต้อนรับ <?php echo $_SESSION['username']; ?></h2>
+    <a href="index.php?action=logout">Logout</a>
+
+<?php } else { ?>
+
+    <h2>เข้าสู่ระบบ</h2>
+    <form method="post">
+        <input type="text" name="username" placeholder="Username" required><br><br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
+        <button name="login">Login</button>
+    </form>
+
+    <p style="color:red;"><?php echo $message; ?></p>
+    <a href="index.php?action=register">สมัครสมาชิก</a>
+
+<?php } ?>
+
+</body>
+</html>
