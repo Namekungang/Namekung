@@ -1,12 +1,54 @@
+# ระบบการยืมคืนหนังสือ (ไฟล์เดียวจบ)
+
+นำโค้ดด้านล่างนี้ไปบันทึกเป็นไฟล์เดียว เช่น `library.php` แล้วเปิดใช้งานได้ทันที
+
+---
+
+```php
 <?php
 session_start();
+
 $conn = new mysqli("localhost","s673190120","s673190120","s673190120");
-if ($conn->connect_error) { die("เชื่อมต่อฐานข้อมูลไม่ได้"); }
+if ($conn->connect_error) {
+    die("เชื่อมต่อฐานข้อมูลไม่ได้: " . $conn->connect_error);
+}
+
+// ================= สร้างตารางอัตโนมัติ =================
+$conn->query("CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) UNIQUE,
+    password VARCHAR(255),
+    full_name VARCHAR(255)
+)");
+
+$conn->query("CREATE TABLE IF NOT EXISTS books (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    book_name VARCHAR(255),
+    status ENUM('available','borrowed') DEFAULT 'available'
+)");
+
+$conn->query("CREATE TABLE IF NOT EXISTS borrow (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    book_id INT,
+    borrow_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    return_date DATETIME NULL
+)");
+
+// เพิ่มหนังสือตัวอย่างอัตโนมัติ
+$checkBook = $conn->query("SELECT id FROM books LIMIT 1");
+if ($checkBook->num_rows == 0) {
+    $conn->query("INSERT INTO books (book_name) VALUES
+        ('PHP Programming'),
+        ('MySQL Database'),
+        ('Web Development'),
+        ('Data Structure')");
+}
 
 $action = $_GET['action'] ?? 'login';
 $message = "";
 
-/* REGISTER */
+// ================= REGISTER =================
 if ($action == 'register' && isset($_POST['register'])) {
     $username = $_POST['username'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -22,44 +64,49 @@ if ($action == 'register' && isset($_POST['register'])) {
     }
 }
 
-/* LOGIN */
+// ================= LOGIN =================
 if ($action == 'login' && isset($_POST['login'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
+
     $result = $conn->query("SELECT * FROM users WHERE username='$username'");
     if ($result->num_rows > 0) {
         $user = $result->fetch_assoc();
         if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            header("Location: index.php?action=dashboard"); exit();
-        } else { $message = "รหัสผ่านไม่ถูกต้อง"; }
-    } else { $message = "ไม่พบ Username"; }
+            header("Location: ?action=dashboard"); exit();
+        } else {
+            $message = "รหัสผ่านไม่ถูกต้อง";
+        }
+    } else {
+        $message = "ไม่พบ Username";
+    }
 }
 
-/* BORROW */
-if ($action == 'borrow' && isset($_GET['book'])) {
+// ================= BORROW =================
+if ($action == 'borrow' && isset($_GET['book']) && isset($_SESSION['user_id'])) {
     $book_id = $_GET['book'];
     $user_id = $_SESSION['user_id'];
+
     $conn->query("INSERT INTO borrow(user_id,book_id) VALUES('$user_id','$book_id')");
     $conn->query("UPDATE books SET status='borrowed' WHERE id='$book_id'");
-    header("Location: index.php?action=mybooks");
+    header("Location: ?action=mybooks"); exit();
 }
 
-/* RETURN */
+// ================= RETURN =================
 if ($action == 'return' && isset($_GET['borrow_id'])) {
     $borrow_id = $_GET['borrow_id'];
     $conn->query("UPDATE borrow SET return_date=NOW() WHERE id='$borrow_id'");
-    $conn->query("UPDATE books 
-                  SET status='available' 
+    $conn->query("UPDATE books SET status='available' 
                   WHERE id=(SELECT book_id FROM borrow WHERE id='$borrow_id')");
-    header("Location: index.php?action=mybooks");
+    header("Location: ?action=mybooks"); exit();
 }
 
-/* LOGOUT */
+// ================= LOGOUT =================
 if ($action == 'logout') {
     session_destroy();
-    header("Location: index.php"); exit();
+    header("Location: ?"); exit();
 }
 ?>
 
@@ -131,15 +178,15 @@ th,td{
 <button name="register">สมัครสมาชิก</button>
 </form>
 <div class="message"><?php echo $message; ?></div>
-<a href="index.php">ไปหน้า Login</a>
+<a href="?">ไปหน้า Login</a>
 
 <?php } elseif ($action == 'dashboard' && isset($_SESSION['user_id'])) { ?>
 
 <h1>📚 ระบบการยืมคืนหนังสือ</h1>
 <div class="menu">
-<a href="index.php?action=borrow_page">ยืมหนังสือ</a>
-<a href="index.php?action=mybooks">รายการที่ยืม</a>
-<a href="index.php?action=logout">Logout</a>
+<a href="?action=borrow_page">ยืมหนังสือ</a>
+<a href="?action=mybooks">รายการที่ยืม</a>
+<a href="?action=logout">Logout</a>
 </div>
 <p>ยินดีต้อนรับ <?php echo $_SESSION['username']; ?></p>
 
@@ -147,7 +194,7 @@ th,td{
 
 <h1>เลือกหนังสือเพื่อยืม</h1>
 <div class="menu">
-<a href="index.php?action=dashboard">กลับหน้า Dashboard</a>
+<a href="?action=dashboard">กลับหน้า Dashboard</a>
 </div>
 
 <table>
@@ -159,7 +206,7 @@ echo "<tr>";
 echo "<td>".$b['book_name']."</td>";
 echo "<td>".$b['status']."</td>";
 if($b['status']=="available"){
-echo "<td><a href='index.php?action=borrow&book=".$b['id']."'>ยืม</a></td>";
+echo "<td><a href='?action=borrow&book=".$b['id']."'>ยืม</a></td>";
 }else{
 echo "<td>-</td>";
 }
@@ -172,7 +219,7 @@ echo "</tr>";
 
 <h1>รายการที่ยืม</h1>
 <div class="menu">
-<a href="index.php?action=dashboard">กลับหน้า Dashboard</a>
+<a href="?action=dashboard">กลับหน้า Dashboard</a>
 </div>
 
 <table>
@@ -190,7 +237,7 @@ echo "<td>".$row['book_name']."</td>";
 echo "<td>".$row['borrow_date']."</td>";
 echo "<td>".($row['return_date'] ?? '-')."</td>";
 if(!$row['return_date']){
-echo "<td><a href='index.php?action=return&borrow_id=".$row['id']."'>คืน</a></td>";
+echo "<td><a href='?action=return&borrow_id=".$row['id']."'>คืน</a></td>";
 }else{
 echo "<td>-</td>";
 }
@@ -208,10 +255,11 @@ echo "</tr>";
 <button name="login">Login</button>
 </form>
 <div class="message"><?php echo $message; ?></div>
-<a href="index.php?action=register">สมัครสมาชิก</a>
+<a href="?action=register">สมัครสมาชิก</a>
 
 <?php } ?>
 
 </div>
 </body>
 </html>
+```
