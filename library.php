@@ -64,41 +64,102 @@ if ($action == 'logout') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Login System</title>
+    <title>ระบบการยืมคืนหนังสือ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #4e73df, #1cc88a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            width: 350px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            width: 95%;
+            padding: 10px;
+            background: #4e73df;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2e59d9;
+        }
+        a {
+            text-decoration: none;
+            color: #4e73df;
+            font-size: 14px;
+        }
+        .message {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+        }
+    </style>
 </head>
 <body>
 
+<div class="card">
+
 <?php if ($action == 'register') { ?>
 
-    <h2>สมัครสมาชิก</h2>
+    <h1>📚 สมัครสมาชิก</h1>
     <form method="post">
-        <input type="text" name="full_name" placeholder="ชื่อ-สกุล" required><br><br>
-        <input type="text" name="username" placeholder="Username" required><br><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
+        <input type="text" name="full_name" placeholder="ชื่อ-สกุล" required>
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
         <button name="register">สมัครสมาชิก</button>
     </form>
 
-    <p style="color:red;"><?php echo $message; ?></p>
+    <div class="message"><?php echo $message; ?></div>
+    <br>
     <a href="index.php">ไปหน้า Login</a>
 
 <?php } elseif ($action == 'dashboard' && isset($_SESSION['user_id'])) { ?>
 
-    <h2>ยินดีต้อนรับ <?php echo $_SESSION['username']; ?></h2>
+    <h1>📚 ระบบการยืมคืนหนังสือ</h1>
+    <p>ยินดีต้อนรับ <strong><?php echo $_SESSION['username']; ?></strong></p>
+    <br>
     <a href="index.php?action=logout">Logout</a>
 
 <?php } else { ?>
 
-    <h2>เข้าสู่ระบบ</h2>
+    <h1>📚 ระบบการยืมคืนหนังสือ</h1>
     <form method="post">
-        <input type="text" name="username" placeholder="Username" required><br><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
         <button name="login">Login</button>
     </form>
 
-    <p style="color:red;"><?php echo $message; ?></p>
+    <div class="message"><?php echo $message; ?></div>
+    <br>
     <a href="index.php?action=register">สมัครสมาชิก</a>
 
 <?php } ?>
+
+</div>
 
 </body>
 </html>
