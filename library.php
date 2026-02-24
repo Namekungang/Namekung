@@ -53,7 +53,7 @@ if ($checkBook->num_rows == 0) {
 $action = $_GET['action'] ?? 'login';
 $message = "";
 
-/* ================= REGISTER (USER ONLY) ================= */
+/* ================= REGISTER ================= */
 
 if ($action == 'register' && isset($_POST['register'])) {
     $username = $_POST['username'];
@@ -92,7 +92,7 @@ if ($action == 'login' && isset($_POST['login'])) {
     }
 }
 
-/* ================= ADD BOOK (ADMIN ONLY) ================= */
+/* ================= ADD BOOK ================= */
 
 if ($action == 'add_book' && isset($_POST['add_book']) && $_SESSION['role']=='admin') {
     $book = $_POST['book_name'];
@@ -143,6 +143,7 @@ table{width:100%;border-collapse:collapse;}
 table,th,td{border:1px solid #ddd;}
 th,td{padding:10px;text-align:center;}
 .message{color:red;}
+.info-box{background:#f8f9fc;padding:10px;border-radius:8px;margin-bottom:15px;}
 </style>
 </head>
 <body>
@@ -163,91 +164,26 @@ th,td{padding:10px;text-align:center;}
 <a href="?action=logout">Logout</a>
 </div>
 
-<?php } elseif ($action == 'members' && $_SESSION['role']=='admin') { ?>
+<?php } elseif ($action == 'manual') { ?>
 
-<h2>รายชื่อสมาชิก</h2>
-<table>
-<tr><th>ID</th><th>ชื่อ</th><th>Username</th><th>Role</th></tr>
-<?php
-$result = $conn->query("SELECT * FROM users");
-while($u=$result->fetch_assoc()){
-echo "<tr>
-<td>{$u['id']}</td>
-<td>{$u['full_name']}</td>
-<td>{$u['username']}</td>
-<td>{$u['role']}</td>
-</tr>";
-}
-?>
-</table>
-<a href="?action=dashboard">กลับ</a>
+<h2>📖 คู่มือการใช้งาน</h2>
 
-<?php } elseif ($action == 'manage_books' && $_SESSION['role']=='admin') { ?>
+<h3>👨‍💼 สำหรับ Admin</h3>
+<ul>
+<li>เข้าสู่ระบบด้วย Username: <b>admin</b></li>
+<li>Password: <b>admin</b></li>
+<li>ดูรายชื่อสมาชิก</li>
+<li>เพิ่มหนังสือเข้าระบบ</li>
+</ul>
 
-<h2>เพิ่มหนังสือ</h2>
-<form method="post">
-<input type="text" name="book_name" placeholder="ชื่อหนังสือ" required>
-<button name="add_book">เพิ่มหนังสือ</button>
-</form>
+<h3>👤 สำหรับ User</h3>
+<ul>
+<li>สมัครสมาชิกก่อนเข้าใช้งาน</li>
+<li>ยืมหนังสือที่สถานะ available</li>
+<li>คืนหนังสือได้ที่หน้า "รายการที่ยืม"</li>
+</ul>
 
-<hr>
-<h3>รายการหนังสือทั้งหมด</h3>
-<table>
-<tr><th>ชื่อหนังสือ</th><th>สถานะ</th></tr>
-<?php
-$books = $conn->query("SELECT * FROM books");
-while($b=$books->fetch_assoc()){
-echo "<tr><td>{$b['book_name']}</td><td>{$b['status']}</td></tr>";
-}
-?>
-</table>
-<a href="?action=dashboard">กลับ</a>
-
-<?php } elseif ($action == 'borrow_page' && $_SESSION['role']=='user') { ?>
-
-<h2>เลือกหนังสือ</h2>
-<table>
-<tr><th>ชื่อหนังสือ</th><th>สถานะ</th><th>จัดการ</th></tr>
-<?php
-$books=$conn->query("SELECT * FROM books");
-while($b=$books->fetch_assoc()){
-echo "<tr>";
-echo "<td>{$b['book_name']}</td>";
-echo "<td>{$b['status']}</td>";
-if($b['status']=="available")
-echo "<td><a href='?action=borrow&book={$b['id']}'>ยืม</a></td>";
-else echo "<td>-</td>";
-echo "</tr>";
-}
-?>
-</table>
-<a href="?action=dashboard">กลับ</a>
-
-<?php } elseif ($action == 'mybooks' && $_SESSION['role']=='user') { ?>
-
-<h2>รายการที่ยืม</h2>
-<table>
-<tr><th>ชื่อหนังสือ</th><th>วันที่ยืม</th><th>วันที่คืน</th><th>จัดการ</th></tr>
-<?php
-$user_id=$_SESSION['user_id'];
-$sql="SELECT borrow.*,books.book_name
-      FROM borrow
-      JOIN books ON borrow.book_id=books.id
-      WHERE borrow.user_id='$user_id'";
-$result=$conn->query($sql);
-while($row=$result->fetch_assoc()){
-echo "<tr>";
-echo "<td>{$row['book_name']}</td>";
-echo "<td>{$row['borrow_date']}</td>";
-echo "<td>".($row['return_date']??'-')."</td>";
-if(!$row['return_date'])
-echo "<td><a href='?action=return&borrow_id={$row['id']}'>คืน</a></td>";
-else echo "<td>-</td>";
-echo "</tr>";
-}
-?>
-</table>
-<a href="?action=dashboard">กลับ</a>
+<a href="?">กลับหน้า Login</a>
 
 <?php } elseif ($action == 'register') { ?>
 
@@ -264,13 +200,23 @@ echo "</tr>";
 <?php } else { ?>
 
 <h2>Login</h2>
+
+<div class="info-box">
+<b>บัญชีผู้ดูแลระบบ</b><br>
+Username: <b>admin</b><br>
+Password: <b>admin</b>
+</div>
+
 <form method="post">
 <input type="text" name="username" required>
 <input type="password" name="password" required>
 <button name="login">Login</button>
 </form>
+
 <div class="message"><?php echo $message; ?></div>
-<a href="?action=register">สมัครสมาชิก</a>
+
+<a href="?action=register">สมัครสมาชิก</a> |
+<a href="?action=manual">คู่มือการใช้งาน</a>
 
 <?php } ?>
 
