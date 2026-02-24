@@ -1,11 +1,11 @@
 <?php
 session_start();
 
+/* ================== CONNECT DATABASE ================== */
 $conn = new mysqli("localhost","s673190120","s673190120","s673190120");
 if ($conn->connect_error) { die("เชื่อมต่อฐานข้อมูลไม่ได้"); }
 
-//////////////////// CREATE TABLE ////////////////////
-
+/* ================== CREATE TABLE ================== */
 $conn->query("CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100) UNIQUE,
@@ -28,10 +28,9 @@ $conn->query("CREATE TABLE IF NOT EXISTS borrow (
     return_date DATETIME NULL
 )");
 
-//////////////////// CREATE ADMIN surasit ////////////////////
-
-$check = $conn->prepare("SELECT id FROM users WHERE username=?");
+/* ================== CREATE ADMIN ================== */
 $adminUser = "surasit";
+$check = $conn->prepare("SELECT id FROM users WHERE username=?");
 $check->bind_param("s",$adminUser);
 $check->execute();
 $check->store_result();
@@ -45,21 +44,20 @@ if ($check->num_rows == 0) {
     $stmt->execute();
 }
 
-//////////////////// SAMPLE BOOK ////////////////////
-
+/* ================== SAMPLE BOOK ================== */
 $result = $conn->query("SELECT id FROM books LIMIT 1");
-if ($result->num_rows == 0) {
+if ($result && $result->num_rows == 0) {
     $conn->query("INSERT INTO books (book_name) VALUES
     ('PHP Programming'),
     ('MySQL Database'),
     ('Web Development')");
 }
 
-$action = $_GET['action'] ?? 'login';
+/* ================== ACTION ================== */
+$action = isset($_GET['action']) ? $_GET['action'] : 'login';
 $message = "";
 
-//////////////////// REGISTER ////////////////////
-
+/* ================== REGISTER ================== */
 if ($action == 'register' && isset($_POST['register'])) {
 
     $username = $_POST['username'];
@@ -81,8 +79,7 @@ if ($action == 'register' && isset($_POST['register'])) {
     }
 }
 
-//////////////////// LOGIN ////////////////////
-
+/* ================== LOGIN ================== */
 if ($action == 'login' && isset($_POST['login'])) {
 
     $username = $_POST['username'];
@@ -94,12 +91,11 @@ if ($action == 'login' && isset($_POST['login'])) {
     $stmt->execute();
     $result = $stmt->get_result();
 
-    if ($result->num_rows > 0) {
+    if ($result && $result->num_rows > 0) {
         $user = $result->fetch_assoc();
 
         if (password_verify($password,$user['password'])) {
 
-            // ถ้าเลือก admin ต้องเป็น surasit เท่านั้น
             if ($selectedRole == "admin") {
                 if ($user['role'] != "admin") {
                     $message = "ไม่มีสิทธิ์เข้าแบบ Admin";
@@ -124,23 +120,19 @@ if ($action == 'login' && isset($_POST['login'])) {
     }
 }
 
-//////////////////// ADD BOOK (ADMIN ONLY) ////////////////////
-
-if ($action == 'add_book' && $_SESSION['role']=="admin") {
-
+/* ================== ADD BOOK ================== */
+if ($action == 'add_book' && isset($_SESSION['role']) && $_SESSION['role']=="admin") {
     $book = $_POST['book_name'];
     $stmt = $conn->prepare("INSERT INTO books(book_name) VALUES(?)");
     $stmt->bind_param("s",$book);
     $stmt->execute();
-
     header("Location:?action=dashboard"); exit();
 }
 
-//////////////////// BORROW ////////////////////
+/* ================== BORROW ================== */
+if ($action == 'borrow' && isset($_GET['book']) && isset($_SESSION['user_id'])) {
 
-if ($action == 'borrow' && isset($_GET['book'])) {
-
-    $book_id = $_GET['book'];
+    $book_id = intval($_GET['book']);
     $user_id = $_SESSION['user_id'];
 
     $stmt = $conn->prepare("INSERT INTO borrow(user_id,book_id) VALUES(?,?)");
@@ -151,11 +143,10 @@ if ($action == 'borrow' && isset($_GET['book'])) {
     header("Location:?action=mybooks"); exit();
 }
 
-//////////////////// RETURN ////////////////////
+/* ================== RETURN ================== */
+if ($action == 'return' && isset($_GET['borrow_id']) && isset($_SESSION['user_id'])) {
 
-if ($action == 'return' && isset($_GET['borrow_id'])) {
-
-    $borrow_id = $_GET['borrow_id'];
+    $borrow_id = intval($_GET['borrow_id']);
 
     $conn->query("UPDATE borrow SET return_date=NOW() WHERE id=$borrow_id");
     $conn->query("UPDATE books SET status='available'
@@ -164,155 +155,9 @@ if ($action == 'return' && isset($_GET['borrow_id'])) {
     header("Location:?action=mybooks"); exit();
 }
 
-//////////////////// LOGOUT ////////////////////
-
+/* ================== LOGOUT ================== */
 if ($action == 'logout') {
     session_destroy();
     header("Location:?"); exit();
 }
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-<title>ระบบยืมคืนหนังสือ</title>
-<style>
-body{font-family:Arial;background:#f2f2f2;}
-.container{width:1000px;margin:auto;background:white;padding:30px;margin-top:30px;border-radius:10px;}
-.menu a{padding:8px 12px;background:#007bff;color:white;text-decoration:none;margin-right:5px;border-radius:5px;}
-input,button,select{padding:10px;width:100%;margin:5px 0;}
-button{background:#007bff;color:white;border:none;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{border:1px solid #ddd;padding:10px;text-align:center;}
-.message{color:red;}
-</style>
-</head>
-<body>
-<div class="container">
-
-<?php if($action=="dashboard" && isset($_SESSION['user_id'])){ ?>
-
-<h1>📚 ระบบยืมคืนหนังสือ</h1>
-<p><b>ชื่อ:</b> <?=htmlspecialchars($_SESSION['full_name'])?>
-(<?=htmlspecialchars($_SESSION['role'])?>)</p>
-
-<div class="menu">
-<a href="?action=borrow_page">ยืมหนังสือ</a>
-<a href="?action=mybooks">หนังสือของฉัน</a>
-<?php if($_SESSION['role']=="admin"){ ?>
-<a href="?action=manage_users">ดูสมาชิก</a>
-<?php } ?>
-<a href="?action=logout">Logout</a>
-</div>
-
-<?php if($_SESSION['role']=="admin"){ ?>
-<hr>
-<h3>เพิ่มหนังสือ</h3>
-<form method="post" action="?action=add_book">
-<input name="book_name" placeholder="ชื่อหนังสือ" required>
-<button>เพิ่มหนังสือ</button>
-</form>
-<?php } ?>
-
-<?php } elseif($action=="manage_users" && $_SESSION['role']=="admin"){ ?>
-
-<h2>สมาชิกทั้งหมด</h2>
-<a href="?action=dashboard">กลับ</a>
-<table>
-<tr><th>ID</th><th>Username</th><th>ชื่อ</th><th>Role</th></tr>
-<?php
-$res=$conn->query("SELECT * FROM users");
-while($u=$res->fetch_assoc()){
-echo "<tr>
-<td>{$u['id']}</td>
-<td>{$u['username']}</td>
-<td>{$u['full_name']}</td>
-<td>{$u['role']}</td>
-</tr>";
-}
-?>
-</table>
-
-<?php } elseif($action=="borrow_page"){ ?>
-
-<h2>เลือกหนังสือ</h2>
-<a href="?action=dashboard">กลับ</a>
-<table>
-<tr><th>ชื่อหนังสือ</th><th>สถานะ</th><th>จัดการ</th></tr>
-<?php
-$books=$conn->query("SELECT * FROM books");
-while($b=$books->fetch_assoc()){
-echo "<tr>";
-echo "<td>{$b['book_name']}</td>";
-echo "<td>{$b['status']}</td>";
-if($b['status']=="available"){
-echo "<td><a href='?action=borrow&book={$b['id']}'>ยืม</a></td>";
-}else{
-echo "<td>-</td>";
-}
-echo "</tr>";
-}
-?>
-</table>
-
-<?php } elseif($action=="mybooks"){ ?>
-
-<h2>หนังสือที่ยืม</h2>
-<a href="?action=dashboard">กลับ</a>
-<table>
-<tr><th>หนังสือ</th><th>วันที่ยืม</th><th>วันที่คืน</th><th>จัดการ</th></tr>
-<?php
-$user=$_SESSION['user_id'];
-$sql="SELECT borrow.*,books.book_name 
-FROM borrow JOIN books ON borrow.book_id=books.id
-WHERE borrow.user_id=$user";
-$res=$conn->query($sql);
-while($r=$res->fetch_assoc()){
-echo "<tr>";
-echo "<td>{$r['book_name']}</td>";
-echo "<td>{$r['borrow_date']}</td>";
-echo "<td>".($r['return_date']??'-')."</td>";
-if(!$r['return_date']){
-echo "<td><a href='?action=return&borrow_id={$r['id']}'>คืน</a></td>";
-}else{
-echo "<td>-</td>";
-}
-echo "</tr>";
-}
-?>
-</table>
-
-<?php } elseif($action=="register"){ ?>
-
-<h2>สมัครสมาชิก</h2>
-<form method="post">
-<input name="full_name" placeholder="ชื่อ-สกุล" required>
-<input name="username" placeholder="Username" required>
-<input type="password" name="password" placeholder="Password" required>
-<button name="register">สมัคร</button>
-</form>
-<div class="message"><?=$message?></div>
-<a href="?">กลับหน้า Login</a>
-
-<?php } else { ?>
-
-<h2>เข้าสู่ระบบ</h2>
-<form method="post">
-<input name="username" placeholder="Username" required>
-<input type="password" name="password" placeholder="Password" required>
-
-<select name="role">
-<option value="user">เข้าสู่ระบบแบบ User</option>
-<option value="admin">เข้าสู่ระบบแบบ Admin</option>
-</select>
-
-<button name="login">Login</button>
-</form>
-
-<div class="message"><?=$message?></div>
-<a href="?action=register">สมัครสมาชิก</a>
-
-<?php } ?>
-
-</div>
-</body>
-</html>
